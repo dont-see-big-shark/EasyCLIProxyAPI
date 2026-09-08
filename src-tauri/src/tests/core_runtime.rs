@@ -634,3 +634,36 @@ fn overlay_directory_replaces_existing_binary_with_fresh_inode() {
 
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn core_start_log_path_follows_managed_logs_directory() {
+    let base_dir = PathBuf::from("test-base");
+    let install_dir = base_dir.join("cpa-core");
+
+    assert_eq!(
+        core_start_log_path(&install_dir, "../oauth"),
+        base_dir.join("oauth").join("logs").join("core-start-output.log")
+    );
+
+    assert_eq!(
+        core_start_log_path(&install_dir, "custom-auth"),
+        install_dir.join("custom-auth").join("logs").join("core-start-output.log")
+    );
+}
+
+#[test]
+fn core_start_stdio_creates_log_file_in_managed_logs_directory() {
+    let root = agent_test_home("core-start-stdio-log-dir");
+    let install_dir = root.join("cpa-core");
+    fs::create_dir_all(&install_dir).unwrap();
+
+    let stdio = core_start_stdio(&install_dir, "../oauth");
+    drop(stdio);
+
+    let expected_log_path = root.join("oauth").join("logs").join("core-start-output.log");
+    assert!(expected_log_path.exists(), "log file must exist at {expected_log_path:?}");
+    let content = fs::read_to_string(&expected_log_path).unwrap();
+    assert!(content.contains("===== CPA 内核启动"));
+
+    fs::remove_dir_all(root).unwrap();
+}

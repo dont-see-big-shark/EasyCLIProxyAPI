@@ -1238,7 +1238,7 @@ pub(crate) fn start_core_process_inner(
             .current_dir(&install_dir)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(core_start_stdio(&install_dir));
+            .stderr(core_start_stdio(&install_dir, &gui_config.auth_dir));
         configure_background_command(&mut command);
         command
     };
@@ -1287,16 +1287,18 @@ pub(crate) fn start_core_process_inner(
     }
 }
 
-fn core_start_stdio(install_dir: &Path) -> Stdio {
+pub(crate) fn core_start_log_path(install_dir: &Path, auth_dir: &str) -> PathBuf {
+    core_logs_dir_path(auth_dir, install_dir).join("core-start-output.log")
+}
+
+pub(crate) fn core_start_stdio(install_dir: &Path, auth_dir: &str) -> Stdio {
     // Keep the core's early output on disk: when the core dies right after
     // spawn (for example exit code 0 or a kernel SIGKILL), this file is the
     // only trace of what it printed before exiting.
-    let log_dir = install_dir
-        .parent()
-        .map(|parent| parent.join("logs"))
-        .unwrap_or_else(|| install_dir.to_path_buf());
-    let _ = fs::create_dir_all(&log_dir);
-    let log_path = log_dir.join("core-start-output.log");
+    let log_path = core_start_log_path(install_dir, auth_dir);
+    if let Some(parent) = log_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
     File::options()
         .append(true)
         .create(true)
